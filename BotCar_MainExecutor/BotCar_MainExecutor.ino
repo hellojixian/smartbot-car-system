@@ -163,7 +163,7 @@ float getBatteryVoltage() {
 }
 
 int getSteeringAngle() {
-  int v_min = 880, v_middle = 2400, v_max = 4000;
+  int v_min = 850, v_middle = 2400, v_max = 4000;
   int deadzone_min = 2200,  deadzone_max = 2600;
   float steeringValue = analogRead(STEERING_SENSOR_PIN);
   steeringValue = max(steeringValue, v_min);
@@ -215,7 +215,7 @@ void handleRadioInterrupt() {
 }
 
 unsigned long lastSignalTime = 0;
-void handleSignleStatus() {
+void handleSignleStatus() {  
   unsigned long sinceLastSignal = millis() - lastSignalTime;
   if (sinceLastSignal >= 500) { 
     digitalWrite(SIGNAL_PIN, 0);
@@ -301,6 +301,14 @@ void displayLog(const char *message) {
   display.display();
 }
 
+void displayMasterConnected() {
+  display.clearDisplay();  
+  display.setTextColor(SSD1306_WHITE); // 文本颜色
+  display.setTextSize(1); // 文本大小
+  display.setCursor(10, 28); // 文本起始位置
+  display.print("Master Connected!");
+  display.display();
+}
 
 void handleCommand(const char *cmd) {  
   // 处理车辆移动命令
@@ -343,14 +351,21 @@ void handleCommand(const char *cmd) {
     digitalWrite(SIGNAL_PIN, 1);
     fetchBotStatus();
     Serial.println(botStatus);
+    // radio.stopListening();
     radio.writeAckPayload(1, botStatus, sizeof(botStatus));
+    // delay(20);
+    // radio.startListening();
   }
   // reset the signal detector pin
   unsigned long sinceLastSignal = millis() - lastSignalTime;
   if (sinceLastSignal>=200){
     digitalWrite(SIGNAL_PIN, 1);
     fetchBotStatus();
+    radio.stopListening();
     radio.writeAckPayload(1, botStatus, sizeof(botStatus));
+    // delay(20);
+    radio.startListening();
   }
+  if (!lastSignalTime) displayMasterConnected();
   lastSignalTime = millis();
 }
