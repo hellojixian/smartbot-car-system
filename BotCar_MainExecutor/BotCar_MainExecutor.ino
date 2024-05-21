@@ -163,7 +163,7 @@ float getBatteryVoltage() {
 }
 
 int getSteeringAngle() {
-  int v_min = 850, v_middle = 2400, v_max = 4000;
+  int v_min = 880, v_middle = 2400, v_max = 4000;
   int deadzone_min = 2200,  deadzone_max = 2600;
   float steeringValue = analogRead(STEERING_SENSOR_PIN);
   steeringValue = max(steeringValue, v_min);

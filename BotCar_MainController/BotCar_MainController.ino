@@ -31,6 +31,9 @@
 #define LED_FORWARD_PIN 10
 #define LED_BACKWARD_PIN 9
 
+#define FRONT_DISTANCE_TRIG_PIN A6
+#define FRONT_DISTANCE_ECHO_PIN A7
+
 #define EEPROM_ADDRESS 0x0
 #define RADIO_ADDRESS { '0', '0', '0', '1', '0', '1' }
 
@@ -41,6 +44,18 @@ enum bot_power_t {
 	BOT_JUST_WAKEUP = 3
 };
 
+enum driving_direction_t {
+  DRIVE_FORWARD = 1,
+  DRIVE_BACKWARD = -1,
+  STOPPED = 0,
+};
+
+enum steering_direction_t {
+  TURNING_LEFT = 1,
+  TURNING_RIGHT = -1,
+  STRAIGHT = 0,
+};
+
 volatile unsigned long pulseCount = 0;
 volatile unsigned long totalPulseCount = 0;
 unsigned long lastPulseCount = 0;
@@ -49,6 +64,9 @@ float wheelCircumference = 18.84954;
 int circlePulses = 3;
 float currentRPM = 0;
 unsigned long lastTime = 0;
+
+steering_direction_t steeringState = STRAIGHT;
+driving_direction_t drivingState = STOPPED;
 
 // 创建一个 OLED 显示对象
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
@@ -137,6 +155,18 @@ void prepare_sleep() {
 void handleWheelPulses() {
   pulseCount++;
   totalPulseCount++;
+}
+
+// return distance in centimetre(cm)
+long getFrontDistance() {
+  digitalWrite(FRONT_DISTANCE_TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(FRONT_DISTANCE_TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(FRONT_DISTANCE_TRIG_PIN, LOW);
+  long duration = pulseIn(FRONT_DISTANCE_ECHO_PIN, HIGH);  
+  long distance = duration * 0.034 / 2;
+  return distance;
 }
 
 float getCurrentWheelSpeed() {
@@ -247,11 +277,7 @@ bool handleBotPowerStatus() {
     PMU.sleep(PM_POFFS1, SLEEP_FOREVER);      
     return true;
   }
-  if (bot_p == BOT_SLEEPING) {  
-    // Serial.begin(9600);
-    // Serial.println("wake up already");
-    
-    // after wake up, reset the system
+  if (bot_p == BOT_SLEEPING) {      
     wdt_enable(WDTO_15MS);
     while (1);        
   }
@@ -310,22 +336,28 @@ void handleCommand(const char *cmd) {
     if (x < 0) {      
       analogWrite(LED_LEFT_PIN,  min(map(abs(x), 0, 18, 0, 255), 255));
       analogWrite(LED_RIGHT_PIN, 0);
+      steeringState = TURNING_LEFT;
     }else if (x > 0 ){
       analogWrite(LED_LEFT_PIN,  0);
       analogWrite(LED_RIGHT_PIN, min(map(abs(x), 0, 18, 0, 255), 255));
+      steeringState = TURNING_RIGHT;
     }else{
       analogWrite(LED_LEFT_PIN,  0);
       analogWrite(LED_RIGHT_PIN, 0);
+      steeringState = STRAIGHT;
     }    
     if (y > 0) {      
       analogWrite(LED_FORWARD_PIN,  min(map(abs(y), 0, 18, 0, 255), 255));
       analogWrite(LED_BACKWARD_PIN, 0);
+      drivingState = DRIVE_FORWARD;
     }else if (y < 0 ){
       analogWrite(LED_FORWARD_PIN,  0);
       analogWrite(LED_BACKWARD_PIN, min(map(abs(y), 0, 18, 0, 255), 255));      
+      drivingState = DRIVE_BACKWARD;
     }else{
       analogWrite(LED_FORWARD_PIN,  0);
-      analogWrite(LED_BACKWARD_PIN, 0);
+      analogWrite(LED_BACKWARD_PIN, 0);      
+      drivingState = STOPPED;
     }    
   }
   // 处理喇叭命令
