@@ -215,6 +215,7 @@ void handleRadioInterrupt() {
 }
 
 unsigned long lastSignalTime = 0;
+unsigned long lastAckSignalTime = 0;
 void handleSignleStatus() {  
   unsigned long sinceLastSignal = millis() - lastSignalTime;
   if (sinceLastSignal >= 500) { 
@@ -350,21 +351,17 @@ void handleCommand(const char *cmd) {
     // report status    
     digitalWrite(SIGNAL_PIN, 1);
     fetchBotStatus();
-    Serial.println(botStatus);
-    // radio.stopListening();
+    Serial.println(botStatus);    
     radio.writeAckPayload(1, botStatus, sizeof(botStatus));
-    // delay(20);
-    // radio.startListening();
+    lastAckSignalTime = millis();    
   }
   // reset the signal detector pin
   unsigned long sinceLastSignal = millis() - lastSignalTime;
-  if (sinceLastSignal>=200){
+  unsigned long sinceAckLastSignal = millis() - lastAckSignalTime;
+  if (sinceLastSignal>=200 || sinceAckLastSignal>=500){
     digitalWrite(SIGNAL_PIN, 1);
     fetchBotStatus();
-    radio.stopListening();
-    radio.writeAckPayload(1, botStatus, sizeof(botStatus));
-    // delay(20);
-    radio.startListening();
+    radio.writeAckPayload(1, botStatus, sizeof(botStatus));    
   }
   if (!lastSignalTime) displayMasterConnected();
   lastSignalTime = millis();
